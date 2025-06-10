@@ -1,17 +1,20 @@
 import { createContext, useEffect, useState } from "react";
-import {products} from '../assets/frontend_assets/assets'
 import { toast } from "react-toastify";
 import Product from "../pages/Product";
 import { useNavigate } from "react-router-dom";
 export const ShopContext  = createContext();
+import axios from 'axios'
 
 const ShopContextProvider = (props) => {
-    const currency = 'RS';
+    const currency = '$';
     const  delivery_fee = 10;
+    const backendUrl = import.meta.env.VITE_BACKEND_URL;
     const [search, setSearch] = useState('')
     const  [showSearch , setShowSearch] = useState(false)
+    const [products, setProducts] = useState([])
     const [cartItems, setCartItems]= useState({})
     const navigate = useNavigate()
+    const  [token , setToken ] = useState('')
 
     const addToCart = async (itemId , size) => {
         if(!size){
@@ -31,6 +34,16 @@ const ShopContextProvider = (props) => {
             cartData[itemId][size] = 1
         }
         setCartItems(cartData)
+
+        if (token) {
+            try {
+                await axios.post(backendUrl + '/api/cart/add', { itemId,size } , { headers:{token} })
+            } catch (error) {
+                console.log(error)
+                toast.error(error.message)
+            }
+        }
+
     }
 
     const getCartCount = ()  =>  {
@@ -73,8 +86,30 @@ const ShopContextProvider = (props) => {
         setCartItems(cartData)
     }
 
+    const getProductsData = async () => {
+        try {
+          const response = await axios.get(`${backendUrl}/api/product/list`);
+          if (response.data.success) {
+              setProducts(response.data.message);
+          }else{
+            toast.error(response.data.message)
+          }
+        } catch (error) {
+          toast.error(error.message);
+        }
+      };
+    useEffect(()=>{
+        getProductsData()
+    },[])
+
+    useEffect(()=>{
+        if (!token && localStorage.getItem('token')) {
+            setToken(localStorage.getItem('token'))
+        }
+    },[])
+
     const value = {
-        products, currency, delivery_fee, search, setSearch, showSearch, setShowSearch, cartItems, addToCart , getCartCount , updateQuantity,getCartAmount, navigate
+        products,token , setToken, currency, delivery_fee, search, setCartItems, setSearch, showSearch, setShowSearch, cartItems, addToCart , getCartCount , updateQuantity,getCartAmount, navigate, backendUrl
     }
     return (
         <ShopContext.Provider value={value}>
